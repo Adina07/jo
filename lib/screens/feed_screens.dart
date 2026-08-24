@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/post.dart';
+import '../services/api_service.dart';
 import '../widgets/post_card.dart';
 import 'busca_screens.dart';
 import 'nova_postagem_screens.dart';
@@ -14,6 +16,42 @@ class FeedScreens extends StatefulWidget {
 
 class _FeedScreensState extends State<FeedScreens> {
   int _paginaAtual = 0;
+
+  List<Post> _posts = [];
+  bool _carregandoPosts = true;
+  String? _erroPosts;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _carregarPosts();
+  }
+
+  Future<void> _carregarPosts() async {
+    try {
+      setState(() {
+        _carregandoPosts = true;
+        _erroPosts = null;
+      });
+
+      final posts = await apiService.getPosts();
+
+      if (!mounted) return;
+
+      setState(() {
+        _posts = posts;
+        _carregandoPosts = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _erroPosts = e.toString();
+        _carregandoPosts = false;
+      });
+    }
+  }
 
   void _trocarPagina(int index) {
     setState(() {
@@ -46,54 +84,61 @@ class _FeedScreensState extends State<FeedScreens> {
         backgroundColor: Colors.green,
       ),
 
-      body: ListView(
-        padding: const EdgeInsets.all(15),
+      body: _carregandoPosts
+          ? const Center(child: CircularProgressIndicator())
+          : _erroPosts != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 60,
+                      color: Colors.red,
+                    ),
 
-        children: [
-          const Text(
-            "Seguindo",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
+                    const SizedBox(height: 15),
 
-          const SizedBox(height: 10),
+                    const Text(
+                      "Não foi possível carregar os posts.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
 
-          const PostCard(
-            nome: "Ádina Souza",
-            login: "@adina",
-            conteudo: "Hoje comecei a aprender Flutter!",
-            meuPost: true,
-          ),
+                    const SizedBox(height: 10),
 
-          const PostCard(
-            nome: "Carlos Lima",
-            login: "@carlos",
-            conteudo: "Alguém conhece bons cursos de Flutter?",
-          ),
+                    Text(_erroPosts!, textAlign: TextAlign.center),
 
-          const SizedBox(height: 25),
+                    const SizedBox(height: 20),
 
-          const Text(
-            "Descobrir",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
+                    ElevatedButton(
+                      onPressed: _carregarPosts,
+                      child: const Text("Tentar novamente"),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _carregarPosts,
 
-          const SizedBox(height: 10),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(15),
 
-          const PostCard(
-            nome: "Maria Souza",
-            login: "@maria",
-            conteudo: "Bom dia, pessoal!",
-          ),
+                itemCount: _posts.length,
 
-          const PostCard(
-            nome: "Ana Paula",
-            login: "@ana",
-            conteudo: "Projeto Mobile quase finalizado.",
-          ),
+                itemBuilder: (context, index) {
+                  final post = _posts[index];
 
-          const SizedBox(height: 80),
-        ],
-      ),
+                  return PostCard(post: post);
+                },
+              ),
+            ),
 
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Colors.green,
@@ -102,12 +147,15 @@ class _FeedScreensState extends State<FeedScreens> {
 
         label: const Text("Post"),
 
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final resultado = await Navigator.push(
             context,
-
             MaterialPageRoute(builder: (_) => const NovaPostagemScreens()),
           );
+
+          if (resultado == true) {
+            _carregarPosts();
+          }
         },
       ),
 

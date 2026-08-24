@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 class NovaPostagemScreens extends StatefulWidget {
   const NovaPostagemScreens({super.key});
@@ -11,6 +12,56 @@ class _NovaPostagemScreensState extends State<NovaPostagemScreens> {
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _postagemController = TextEditingController();
+  bool _carregando = false;
+  Future<void> _publicar() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _carregando = true;
+    });
+
+    try {
+      final mensagem = _postagemController.text.trim();
+
+      final resposta = await apiService.createPost(mensagem);
+
+      print('STATUS POST: ${resposta.statusCode}');
+      print('BODY POST: ${resposta.body}');
+
+      if (!mounted) return;
+
+      if (resposta.statusCode == 200 || resposta.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Postagem publicada com sucesso!")),
+        );
+
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Não foi possível publicar a postagem. "
+              "Código: ${resposta.statusCode}",
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro ao conectar com a API: $e")));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _carregando = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,21 +126,17 @@ class _NovaPostagemScreensState extends State<NovaPostagemScreens> {
                 width: double.infinity,
 
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.send),
+                  icon: _carregando
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send),
 
-                  label: const Text("Publicar"),
+                  label: Text(_carregando ? "Publicando..." : "Publicar"),
 
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Postagem publicada (simulação)"),
-                        ),
-                      );
-
-                      Navigator.pop(context);
-                    }
-                  },
+                  onPressed: _carregando ? null : _publicar,
                 ),
               ),
             ],

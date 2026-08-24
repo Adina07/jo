@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import 'camera_screens.dart';
 import 'galeria_screens.dart';
 
@@ -17,6 +19,158 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
   );
 
   final TextEditingController _senhaController = TextEditingController();
+  bool _carregandoPerfil = true;
+  bool _salvando = false;
+  bool _excluindo = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _carregarPerfil();
+  }
+
+  Future<void> _salvarAlteracoes() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _salvando = true;
+    });
+
+    try {
+      final nome = _nomeController.text.trim();
+      final senha = _senhaController.text.trim();
+
+      final resposta = await apiService.updateMe(
+        name: nome,
+        password: senha.isEmpty ? null : senha,
+        passwordConfirmation: senha.isEmpty ? null : senha,
+      );
+
+      print('STATUS ATUALIZAÇÃO PERFIL: ${resposta.statusCode}');
+      print('BODY ATUALIZAÇÃO PERFIL: ${resposta.body}');
+
+      if (!mounted) return;
+
+      if (resposta.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Perfil atualizado com sucesso!')),
+        );
+
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Não foi possível atualizar o perfil. '
+              'Código: ${resposta.statusCode}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao atualizar perfil: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _salvando = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _carregarPerfil() async {
+    try {
+      final resposta = await apiService.getMe();
+
+      print('STATUS PERFIL EDIÇÃO: ${resposta.statusCode}');
+      print('BODY PERFIL EDIÇÃO: ${resposta.body}');
+
+      if (!mounted) return;
+
+      if (resposta.statusCode == 200) {
+        final dados = jsonDecode(resposta.body);
+
+        setState(() {
+          _nomeController.text = dados['name'] ?? '';
+          _carregandoPerfil = false;
+        });
+      } else {
+        setState(() {
+          _carregandoPerfil = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Não foi possível carregar o perfil. '
+              'Código: ${resposta.statusCode}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _carregandoPerfil = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao carregar perfil: $e')));
+    }
+  }
+
+  Future<void> _excluirPerfil() async {
+    setState(() {
+      _excluindo = true;
+    });
+
+    try {
+      final resposta = await apiService.deleteMe();
+
+      print('STATUS EXCLUSÃO PERFIL: ${resposta.statusCode}');
+      print('BODY EXCLUSÃO PERFIL: ${resposta.body}');
+
+      if (!mounted) return;
+
+      if (resposta.statusCode == 200 || resposta.statusCode == 204) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Perfil excluído com sucesso.')),
+        );
+
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Não foi possível excluir o perfil. '
+              'Código: ${resposta.statusCode}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao excluir perfil: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _excluindo = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +310,14 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
 
                   border: OutlineInputBorder(),
                 ),
+
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && value.length < 6) {
+                    return "A senha deve possuir pelo menos 6 caracteres";
+                  }
+
+                  return null;
+                },
               ),
 
               const SizedBox(height: 30),
@@ -168,15 +330,7 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
 
                   label: const Text("Salvar Alterações"),
 
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Alterações salvas (simulação)"),
-                        ),
-                      );
-                    }
-                  },
+                  onPressed: _salvando ? null : _salvarAlteracoes,
                 ),
               ),
 
@@ -217,17 +371,13 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
                             ),
 
                             ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
+                              onPressed: _excluindo
+                                  ? null
+                                  : () async {
+                                      Navigator.pop(context);
 
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Perfil excluído (simulação)",
-                                    ),
-                                  ),
-                                );
-                              },
+                                      await _excluirPerfil();
+                                    },
 
                               child: const Text("Excluir"),
                             ),

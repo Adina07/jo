@@ -1,4 +1,7 @@
+import 'perfil_screens.dart';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import 'dart:convert';
 
 class BuscaScreens extends StatefulWidget {
   const BuscaScreens({super.key});
@@ -9,6 +12,60 @@ class BuscaScreens extends StatefulWidget {
 
 class _BuscaScreensState extends State<BuscaScreens> {
   final TextEditingController _pesquisaController = TextEditingController();
+  List<dynamic> _usuarios = [];
+  bool _carregando = false;
+  String? _erro;
+
+  Future<void> _buscarUsuarios() async {
+    final pesquisa = _pesquisaController.text.trim();
+
+    if (pesquisa.isEmpty) {
+      setState(() {
+        _usuarios = [];
+        _erro = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+
+    try {
+      final resposta = await apiService.searchUsers(pesquisa);
+
+      print('STATUS BUSCA: ${resposta.statusCode}');
+      print('BODY BUSCA: ${resposta.body}');
+
+      if (!mounted) return;
+
+      if (resposta.statusCode == 200) {
+        final dados = jsonDecode(resposta.body);
+
+        setState(() {
+          _usuarios = dados;
+          _carregando = false;
+        });
+      } else {
+        setState(() {
+          _usuarios = [];
+          _carregando = false;
+          _erro =
+              'Não foi possível realizar a busca. '
+              'Código: ${resposta.statusCode}';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _usuarios = [];
+        _carregando = false;
+        _erro = 'Erro ao realizar busca: $e';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +86,21 @@ class _BuscaScreensState extends State<BuscaScreens> {
             TextField(
               controller: _pesquisaController,
 
-              decoration: const InputDecoration(
-                labelText: "Buscar usuários ou postagens",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+              textInputAction: TextInputAction.search,
+
+              onSubmitted: (_) {
+                _buscarUsuarios();
+              },
+
+              decoration: InputDecoration(
+                labelText: "Buscar usuários",
+                prefixIcon: const Icon(Icons.search),
+                border: const OutlineInputBorder(),
+
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: _buscarUsuarios,
+                ),
               ),
             ),
 
@@ -48,29 +116,49 @@ class _BuscaScreensState extends State<BuscaScreens> {
 
             const SizedBox(height: 10),
 
-            Card(
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: const Text("Ádina  Souza"),
-                subtitle: const Text("@adina"),
-                trailing: ElevatedButton(
-                  onPressed: () {},
-                  child: const Text("Ver"),
-                ),
-              ),
-            ),
+            if (_carregando)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              )
+            else if (_erro != null)
+              Text(_erro!, style: const TextStyle(color: Colors.red))
+            else if (_usuarios.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text("Nenhum usuário encontrado."),
+              )
+            else
+              ..._usuarios.map((usuario) {
+                final login = usuario['login'] ?? '';
+                final nome = usuario['name'] ?? '';
+                final imagem = usuario['profile_image'];
 
-            Card(
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: const Text("Maria Souza"),
-                subtitle: const Text("@maria"),
-                trailing: ElevatedButton(
-                  onPressed: () {},
-                  child: const Text("Ver"),
-                ),
-              ),
-            ),
+                return Card(
+                  child: ListTile(
+                    leading: imagem != null
+                        ? CircleAvatar(backgroundImage: NetworkImage(imagem))
+                        : const CircleAvatar(child: Icon(Icons.person)),
+
+                    title: Text(nome),
+
+                    subtitle: Text('@$login'),
+
+                    trailing: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                PerfilScreens(login: usuario['login']),
+                          ),
+                        );
+                      },
+                      child: const Text("Ver"),
+                    ),
+                  ),
+                );
+              }),
 
             const SizedBox(height: 25),
 
