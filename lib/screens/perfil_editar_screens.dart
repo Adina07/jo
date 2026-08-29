@@ -89,7 +89,7 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
 
     print('STATUS EXCLUSÃO PERFIL: ${resposta.statusCode}');
     print('BODY EXCLUSÃO PERFIL: ${resposta.body}');
-    
+
     try {
       final resposta = await apiService.deleteMe();
 

@@ -469,7 +469,7 @@ class _PostCardState extends State<PostCard> {
                         )
                       : Icon(
                           curtiu ? Icons.favorite : Icons.favorite_border,
-                          color: curtiu ? Colors.red : Colors.grey,
+                          color: curtiu ? const Color.fromARGB(255, 29, 28, 28) : Colors.grey,
                         ),
                   onPressed: carregandoCurtida ? null : _alternarCurtida,
                 ),
