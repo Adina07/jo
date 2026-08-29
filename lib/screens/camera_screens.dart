@@ -1,7 +1,32 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CameraScreens extends StatelessWidget {
   const CameraScreens({super.key});
+
+  Future<void> _tirarFoto(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+
+    final XFile? imagem = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 80,
+    );
+
+    if (imagem == null) {
+      return;
+    }
+
+    final bytes = await File(imagem.path).readAsBytes();
+
+    final base64Imagem = base64Encode(bytes);
+
+    if (!context.mounted) return;
+
+    Navigator.pop(context, base64Imagem);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +60,16 @@ class CameraScreens extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
 
                 children: [
-                  Icon(Icons.camera_alt, size: 80, color: Colors.grey),
+                  Icon(
+                    Icons.camera_alt,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
 
                   SizedBox(height: 10),
 
                   Text(
-                    "Pré-visualização da câmera",
+                    "Câmera do dispositivo",
                     style: TextStyle(fontSize: 18),
                   ),
                 ],
@@ -57,9 +86,7 @@ class CameraScreens extends StatelessWidget {
                 label: const Text("Tirar Foto"),
 
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Foto capturada (simulação)")),
-                  );
+                  _tirarFoto(context);
                 },
               ),
             ),

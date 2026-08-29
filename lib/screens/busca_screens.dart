@@ -1,7 +1,7 @@
-import 'perfil_screens.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import 'dart:convert';
+import 'perfil_screens.dart';
 
 class BuscaScreens extends StatefulWidget {
   const BuscaScreens({super.key});
@@ -11,19 +11,25 @@ class BuscaScreens extends StatefulWidget {
 }
 
 class _BuscaScreensState extends State<BuscaScreens> {
-  final TextEditingController _pesquisaController = TextEditingController();
+  final TextEditingController _pesquisaController =
+      TextEditingController();
+
   List<dynamic> _usuarios = [];
+  List<dynamic> _posts = [];
+
   bool _carregando = false;
   String? _erro;
 
-  Future<void> _buscarUsuarios() async {
+  Future<void> _buscar() async {
     final pesquisa = _pesquisaController.text.trim();
 
     if (pesquisa.isEmpty) {
       setState(() {
         _usuarios = [];
+        _posts = [];
         _erro = null;
       });
+
       return;
     }
 
@@ -33,27 +39,48 @@ class _BuscaScreensState extends State<BuscaScreens> {
     });
 
     try {
-      final resposta = await apiService.searchUsers(pesquisa);
+      final respostas = await Future.wait([
+        apiService.searchUsers(pesquisa),
+        apiService.searchPosts(pesquisa),
+      ]);
 
-      print('STATUS BUSCA: ${resposta.statusCode}');
-      print('BODY BUSCA: ${resposta.body}');
+      final respostaUsuarios = respostas[0];
+      final respostaPosts = respostas[1];
+
+      print(
+        'STATUS BUSCA USUÁRIOS: ${respostaUsuarios.statusCode}',
+      );
+      print(
+        'BODY BUSCA USUÁRIOS: ${respostaUsuarios.body}',
+      );
+
+      print(
+        'STATUS BUSCA POSTS: ${respostaPosts.statusCode}',
+      );
+      print(
+        'BODY BUSCA POSTS: ${respostaPosts.body}',
+      );
 
       if (!mounted) return;
 
-      if (resposta.statusCode == 200) {
-        final dados = jsonDecode(resposta.body);
+      if (respostaUsuarios.statusCode == 200 &&
+          respostaPosts.statusCode == 200) {
+        final usuarios = jsonDecode(respostaUsuarios.body);
+        final posts = jsonDecode(respostaPosts.body);
 
         setState(() {
-          _usuarios = dados;
+          _usuarios = usuarios;
+          _posts = posts;
           _carregando = false;
         });
       } else {
         setState(() {
           _usuarios = [];
+          _posts = [];
           _carregando = false;
+
           _erro =
-              'Não foi possível realizar a busca. '
-              'Código: ${resposta.statusCode}';
+              'Não foi possível realizar a busca.';
         });
       }
     } catch (e) {
@@ -61,6 +88,7 @@ class _BuscaScreensState extends State<BuscaScreens> {
 
       setState(() {
         _usuarios = [];
+        _posts = [];
         _carregando = false;
         _erro = 'Erro ao realizar busca: $e';
       });
@@ -89,117 +117,212 @@ class _BuscaScreensState extends State<BuscaScreens> {
               textInputAction: TextInputAction.search,
 
               onSubmitted: (_) {
-                _buscarUsuarios();
+                _buscar();
               },
 
               decoration: InputDecoration(
-                labelText: "Buscar usuários",
+                labelText: "Buscar usuários ou posts",
+
                 prefixIcon: const Icon(Icons.search),
+
                 border: const OutlineInputBorder(),
 
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
-                  onPressed: _buscarUsuarios,
+                  onPressed: _buscar,
                 ),
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 20),
 
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Usuários",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            if (_carregando)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(),
-              )
-            else if (_erro != null)
-              Text(_erro!, style: const TextStyle(color: Colors.red))
-            else if (_usuarios.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text("Nenhum usuário encontrado."),
-              )
-            else
-              ..._usuarios.map((usuario) {
-                final login = usuario['login'] ?? '';
-                final nome = usuario['name'] ?? '';
-                final imagem = usuario['profile_image'];
-
-                return Card(
-                  child: ListTile(
-                    leading: imagem != null
-                        ? CircleAvatar(backgroundImage: NetworkImage(imagem))
-                        : const CircleAvatar(child: Icon(Icons.person)),
-
-                    title: Text(nome),
-
-                    subtitle: Text('@$login'),
-
-                    trailing: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                PerfilScreens(login: usuario['login']),
+            Expanded(
+              child: _carregando
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : _erro != null
+                      ? Center(
+                          child: Text(
+                            _erro!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        );
-                      },
-                      child: const Text("Ver"),
-                    ),
-                  ),
-                );
-              }),
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
 
-            const SizedBox(height: 25),
+                            children: [
+                              const Text(
+                                "Usuários",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
 
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Postagens",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
+                              const SizedBox(height: 10),
 
-            const SizedBox(height: 10),
+                              if (_usuarios.isEmpty)
+                                const Padding(
+                                  padding:
+                                      EdgeInsets.all(10),
+                                  child: Text(
+                                    "Nenhum usuário encontrado.",
+                                  ),
+                                )
+                              else
+                                ..._usuarios.map(
+                                  (usuario) {
+                                    final login =
+                                        usuario['login'] ?? '';
 
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.article),
+                                    final nome =
+                                        usuario['name'] ?? '';
 
-                title: const Text("Aprendendo Flutter no projeto Papacapim."),
+                                    final imagem =
+                                        usuario['profile_image'];
 
-                subtitle: const Text("Publicado por @adina"),
+                                    return Card(
+                                      child: ListTile(
+                                        leading: imagem !=
+                                                null
+                                            ? CircleAvatar(
+                                                backgroundImage:
+                                                    NetworkImage(
+                                                  imagem,
+                                                ),
+                                              )
+                                            : const CircleAvatar(
+                                                child: Icon(
+                                                  Icons.person,
+                                                ),
+                                              ),
 
-                trailing: IconButton(
-                  icon: const Icon(Icons.favorite_border),
-                  onPressed: () {},
-                ),
-              ),
-            ),
+                                        title: Text(nome),
 
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.article),
+                                        subtitle:
+                                            Text('@$login'),
 
-                title: const Text("Quem conhece bons cursos de Flutter?"),
+                                        trailing:
+                                            ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    PerfilScreens(
+                                                  login: login,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          child:
+                                              const Text("Ver"),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
 
-                subtitle: const Text("Publicado por @maria"),
+                              const SizedBox(height: 25),
 
-                trailing: IconButton(
-                  icon: const Icon(Icons.favorite_border),
-                  onPressed: () {},
-                ),
-              ),
+                              const Text(
+                                "Postagens",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              if (_posts.isEmpty)
+                                const Padding(
+                                  padding:
+                                      EdgeInsets.all(10),
+                                  child: Text(
+                                    "Nenhuma postagem encontrada.",
+                                  ),
+                                )
+                              else
+                                ..._posts.map(
+                                  (post) {
+                                    final mensagem =
+                                        post['message'] ?? '';
+
+                                    final usuario =
+                                        post['user'];
+
+                                    final nomeUsuario =
+                                        usuario?['name'] ??
+                                            '';
+
+                                    final loginUsuario =
+                                        usuario?['login'] ??
+                                            '';
+
+                                    return Card(
+                                      margin:
+                                          const EdgeInsets
+                                              .only(
+                                        bottom: 10,
+                                      ),
+
+                                      child: Padding(
+                                        padding:
+                                            const EdgeInsets
+                                                .all(15),
+
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment
+                                                  .start,
+
+                                          children: [
+                                            Text(
+                                              nomeUsuario,
+                                              style:
+                                                  const TextStyle(
+                                                fontWeight:
+                                                    FontWeight
+                                                        .bold,
+                                              ),
+                                            ),
+
+                                            Text(
+                                              '@$loginUsuario',
+                                              style:
+                                                  TextStyle(
+                                                color: Colors
+                                                    .grey[600],
+                                              ),
+                                            ),
+
+                                            const SizedBox(
+                                              height: 10,
+                                            ),
+
+                                            Text(
+                                              mensagem,
+                                              style:
+                                                  const TextStyle(
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
             ),
           ],
         ),
@@ -210,6 +333,7 @@ class _BuscaScreensState extends State<BuscaScreens> {
   @override
   void dispose() {
     _pesquisaController.dispose();
+
     super.dispose();
   }
 }

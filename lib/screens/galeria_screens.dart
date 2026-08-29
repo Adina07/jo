@@ -1,7 +1,32 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class GaleriaScreens extends StatelessWidget {
   const GaleriaScreens({super.key});
+
+  Future<void> _escolherFoto(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+
+    final XFile? imagem = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (imagem == null) {
+      return;
+    }
+
+    final bytes = await File(imagem.path).readAsBytes();
+
+    final base64Imagem = base64Encode(bytes);
+
+    if (!context.mounted) return;
+
+    Navigator.pop(context, base64Imagem);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,58 +46,50 @@ class GaleriaScreens extends StatelessWidget {
           children: [
             const Text(
               "Escolha uma foto",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
 
             const SizedBox(height: 20),
 
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
 
-                crossAxisSpacing: 15,
+                  children: [
+                    const Icon(
+                      Icons.photo_library,
+                      size: 100,
+                      color: Colors.green,
+                    ),
 
-                mainAxisSpacing: 15,
+                    const SizedBox(height: 20),
 
-                children: List.generate(6, (index) {
-                  return GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            "Foto ${index + 1} selecionada (simulação)",
-                          ),
-                        ),
-                      );
-                    },
+                    const Text(
+                      "Escolha uma foto da galeria do dispositivo",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18),
+                    ),
 
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
+                    const SizedBox(height: 30),
 
-                        borderRadius: BorderRadius.circular(12),
+                    SizedBox(
+                      width: double.infinity,
 
-                        border: Border.all(color: Colors.green),
-                      ),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.photo),
+                        label: const Text("Abrir Galeria"),
 
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-
-                        children: [
-                          const Icon(
-                            Icons.image,
-                            size: 60,
-                            color: Colors.green,
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          Text("Foto ${index + 1}"),
-                        ],
+                        onPressed: () {
+                          _escolherFoto(context);
+                        },
                       ),
                     ),
-                  );
-                }),
+                  ],
+                ),
               ),
             ),
 
@@ -93,3 +110,4 @@ class GaleriaScreens extends StatelessWidget {
     );
   }
 }
+

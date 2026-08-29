@@ -27,13 +27,14 @@ class _LoginScreensState extends State<LoginScreens> {
         backgroundColor: Colors.green,
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(25),
+      body: SingleChildScrollView(
+  child: Padding(
+    padding: const EdgeInsets.all(25),
 
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
 
-          children: [
+      children: [
             const Icon(Icons.flutter_dash, size: 100, color: Colors.green),
 
             const SizedBox(height: 30),
@@ -160,6 +161,7 @@ class _LoginScreensState extends State<LoginScreens> {
           ],
         ),
       ),
+      )
     );
   }
 

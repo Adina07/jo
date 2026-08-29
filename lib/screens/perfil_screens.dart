@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../models/post.dart';
 import '../services/api_service.dart';
+import '../widgets/post_card.dart';
 import 'perfil_editar_screens.dart';
 
 class PerfilScreens extends StatefulWidget {
@@ -31,6 +33,84 @@ class _PerfilScreensState extends State<PerfilScreens> {
 
   int _seguidores = 0;
   int _seguindo = 0;
+  int _posts = 0;
+
+  List<Post> _postagens = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _carregarPerfil();
+  }
+
+  Future<void> _carregarPerfil() async {
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+
+    try {
+      // Busca o perfil
+      final resposta = widget.login == null
+          ? await apiService.getMe()
+          : await apiService.getUser(widget.login!);
+
+      print('STATUS PERFIL: ${resposta.statusCode}');
+      print('BODY PERFIL: ${resposta.body}');
+
+      if (!mounted) return;
+
+      if (resposta.statusCode == 200) {
+        final dados = jsonDecode(resposta.body);
+
+        // Busca todos os posts
+        final todosPosts = await apiService.getPosts();
+
+        // Login do perfil que está sendo visualizado
+        final loginPerfil = dados['login'] ?? '';
+
+        // Filtra somente os posts desse usuário
+        final postsDoUsuario = todosPosts
+            .where((post) => post.userLogin == loginPerfil)
+            .toList();
+
+        setState(() {
+          _nome = dados['name'] ?? '';
+          _login = loginPerfil;
+          _imagem = dados['profile_image'];
+
+          _seguidores = dados['followers_number'] ?? 0;
+          _seguindo = dados['following_number'] ?? 0;
+
+          seguindo = dados['you_follow'] ?? false;
+
+          // Contador de posts
+          _posts = postsDoUsuario.length;
+
+          // Lista de posts do usuário
+          _postagens = postsDoUsuario;
+
+          _carregando = false;
+        });
+      } else {
+        setState(() {
+          _erro =
+              'Não foi possível carregar o perfil. '
+              'Código: ${resposta.statusCode}';
+
+          _carregando = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _erro = 'Erro ao carregar perfil: $e';
+        _carregando = false;
+      });
+    }
+  }
 
   Future<void> _alternarSeguir() async {
     if (_carregandoSeguir) return;
@@ -100,63 +180,6 @@ class _PerfilScreensState extends State<PerfilScreens> {
   }
 
   @override
-  void initState() {
-    super.initState();
-
-    _carregarPerfil();
-  }
-
-  Future<void> _carregarPerfil() async {
-    setState(() {
-      _carregando = true;
-      _erro = null;
-    });
-
-    try {
-      final resposta = widget.login == null
-          ? await apiService.getMe()
-          : await apiService.getUser(widget.login!);
-
-      print('STATUS PERFIL: ${resposta.statusCode}');
-      print('BODY PERFIL: ${resposta.body}');
-
-      if (!mounted) return;
-
-      if (resposta.statusCode == 200) {
-        final dados = jsonDecode(resposta.body);
-
-        setState(() {
-          _nome = dados['name'] ?? '';
-          _login = dados['login'] ?? '';
-          _imagem = dados['profile_image'];
-
-          _seguidores = dados['followers_number'] ?? 0;
-          _seguindo = dados['following_number'] ?? 0;
-
-          seguindo = dados['you_follow'] ?? false;
-
-          _carregando = false;
-        });
-      } else {
-        setState(() {
-          _erro =
-              'Não foi possível carregar o perfil. '
-              'Código: ${resposta.statusCode}';
-
-          _carregando = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _erro = 'Erro ao carregar perfil: $e';
-        _carregando = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -173,8 +196,10 @@ class _PerfilScreensState extends State<PerfilScreens> {
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(20),
+
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+
                   children: [
                     const Icon(
                       Icons.error_outline,
@@ -201,6 +226,7 @@ class _PerfilScreensState extends State<PerfilScreens> {
 
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
+
                 padding: const EdgeInsets.all(20),
 
                 child: Column(
@@ -221,6 +247,7 @@ class _PerfilScreensState extends State<PerfilScreens> {
                     // NOME
                     Text(
                       _nome,
+
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -232,6 +259,7 @@ class _PerfilScreensState extends State<PerfilScreens> {
                     // LOGIN
                     Text(
                       "@$_login",
+
                       style: const TextStyle(color: Colors.grey, fontSize: 16),
                     ),
 
@@ -243,15 +271,17 @@ class _PerfilScreensState extends State<PerfilScreens> {
 
                       children: [
                         Column(
-                          children: const [
+                          children: [
                             Text(
-                              "35",
-                              style: TextStyle(
+                              '$_posts',
+
+                              style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text("Posts"),
+
+                            const Text("Posts"),
                           ],
                         ),
 
@@ -259,11 +289,13 @@ class _PerfilScreensState extends State<PerfilScreens> {
                           children: [
                             Text(
                               '$_seguindo',
+
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+
                             const Text("Seguindo"),
                           ],
                         ),
@@ -272,11 +304,13 @@ class _PerfilScreensState extends State<PerfilScreens> {
                           children: [
                             Text(
                               '$_seguidores',
+
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+
                             const Text("Seguidores"),
                           ],
                         ),
@@ -285,6 +319,7 @@ class _PerfilScreensState extends State<PerfilScreens> {
 
                     const SizedBox(height: 30),
 
+                    // BOTÃO EDITAR PERFIL OU SEGUIR
                     if (meuPerfil)
                       SizedBox(
                         width: double.infinity,
@@ -297,6 +332,7 @@ class _PerfilScreensState extends State<PerfilScreens> {
                           onPressed: () async {
                             final resultado = await Navigator.push(
                               context,
+
                               MaterialPageRoute(
                                 builder: (_) => const PerfilEditarScreens(),
                               ),
@@ -319,6 +355,7 @@ class _PerfilScreensState extends State<PerfilScreens> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
+
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                   ),
@@ -329,6 +366,7 @@ class _PerfilScreensState extends State<PerfilScreens> {
 
                     const SizedBox(height: 30),
 
+                    // TÍTULO POSTAGENS
                     const Align(
                       alignment: Alignment.centerLeft,
 
@@ -343,6 +381,25 @@ class _PerfilScreensState extends State<PerfilScreens> {
                     ),
 
                     const SizedBox(height: 15),
+
+                    // POSTAGENS DO USUÁRIO
+                    if (_postagens.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+
+                        child: Text(
+                          'Nenhuma postagem encontrada.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    else
+                      ..._postagens.map(
+                        (post) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+
+                          child: PostCard(post: post),
+                        ),
+                      ),
                   ],
                 ),
               ),

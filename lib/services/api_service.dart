@@ -148,6 +148,15 @@ class ApiService {
     return await http.get(uri, headers: headers);
   }
 
+Future<http.Response> searchPosts(String search) async {
+  final uri = Uri.parse(
+    '$baseUrl/posts',
+  ).replace(queryParameters: {'search': search});
+
+  return await http.get(uri, headers: headers);
+}
+
+
   Future<http.Response> updateMe({
     String? login,
     String? name,
@@ -189,8 +198,19 @@ class ApiService {
   }
 
   Future<http.Response> deleteMe() async {
-    return await http.delete(Uri.parse('$baseUrl/users/me'), headers: headers);
-  }
+  print('TOKEN PARA EXCLUSÃO: $token');
+  print('HEADERS PARA EXCLUSÃO: $headers');
+
+  final resposta = await http.delete(
+    Uri.parse('$baseUrl/users/me'),
+    headers: headers,
+  );
+
+  print('STATUS DELETE USUÁRIO: ${resposta.statusCode}');
+  print('BODY DELETE USUÁRIO: ${resposta.body}');
+
+  return resposta;
+}
 }
 
 final apiService = ApiService();

@@ -22,67 +22,13 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
   bool _carregandoPerfil = true;
   bool _salvando = false;
   bool _excluindo = false;
+  String? _fotoPerfil;
 
   @override
   void initState() {
     super.initState();
 
     _carregarPerfil();
-  }
-
-  Future<void> _salvarAlteracoes() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _salvando = true;
-    });
-
-    try {
-      final nome = _nomeController.text.trim();
-      final senha = _senhaController.text.trim();
-
-      final resposta = await apiService.updateMe(
-        name: nome,
-        password: senha.isEmpty ? null : senha,
-        passwordConfirmation: senha.isEmpty ? null : senha,
-      );
-
-      print('STATUS ATUALIZAÇÃO PERFIL: ${resposta.statusCode}');
-      print('BODY ATUALIZAÇÃO PERFIL: ${resposta.body}');
-
-      if (!mounted) return;
-
-      if (resposta.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil atualizado com sucesso!')),
-        );
-
-        Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Não foi possível atualizar o perfil. '
-              'Código: ${resposta.statusCode}',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao atualizar perfil: $e')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _salvando = false;
-        });
-      }
-    }
   }
 
   Future<void> _carregarPerfil() async {
@@ -132,7 +78,18 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
     setState(() {
       _excluindo = true;
     });
+    // TESTE: verificar se o token ainda está válido
+    final testePerfil = await apiService.getMe();
 
+    print('STATUS TESTE GET ME: ${testePerfil.statusCode}');
+    print('BODY TESTE GET ME: ${testePerfil.body}');
+
+    // EXCLUSÃO DA CONTA
+    final resposta = await apiService.deleteMe();
+
+    print('STATUS EXCLUSÃO PERFIL: ${resposta.statusCode}');
+    print('BODY EXCLUSÃO PERFIL: ${resposta.body}');
+    
     try {
       final resposta = await apiService.deleteMe();
 
@@ -172,6 +129,61 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
     }
   }
 
+  Future<void> _salvarAlteracoes() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _salvando = true;
+    });
+
+    try {
+      final nome = _nomeController.text.trim();
+      final senha = _senhaController.text.trim();
+
+      final resposta = await apiService.updateMe(
+        name: nome,
+        password: senha.isEmpty ? null : senha,
+        imageData: _fotoPerfil,
+      );
+
+      print('STATUS ATUALIZAÇÃO PERFIL: ${resposta.statusCode}');
+      print('BODY ATUALIZAÇÃO PERFIL: ${resposta.body}');
+
+      if (!mounted) return;
+
+      if (resposta.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Perfil atualizado com sucesso!')),
+        );
+
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Não foi possível atualizar o perfil. '
+              'Código: ${resposta.statusCode}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao atualizar perfil: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _salvando = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -191,9 +203,16 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
 
           child: Column(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 60,
-                child: Icon(Icons.person, size: 60),
+
+                backgroundImage: _fotoPerfil != null
+                    ? MemoryImage(base64Decode(_fotoPerfil!))
+                    : null,
+
+                child: _fotoPerfil == null
+                    ? const Icon(Icons.person, size: 60)
+                    : null,
               ),
 
               const SizedBox(height: 20),
@@ -219,16 +238,21 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
 
                                 title: const Text("Tirar Foto"),
 
-                                onTap: () {
+                                onTap: () async {
                                   Navigator.pop(context);
 
-                                  Navigator.push(
+                                  final foto = await Navigator.push(
                                     context,
-
                                     MaterialPageRoute(
                                       builder: (_) => const CameraScreens(),
                                     ),
                                   );
+
+                                  if (foto != null) {
+                                    setState(() {
+                                      _fotoPerfil = foto;
+                                    });
+                                  }
                                 },
                               ),
 
@@ -237,16 +261,21 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
 
                                 title: const Text("Escolher da Galeria"),
 
-                                onTap: () {
+                                onTap: () async {
                                   Navigator.pop(context);
 
-                                  Navigator.push(
+                                  final foto = await Navigator.push(
                                     context,
-
                                     MaterialPageRoute(
                                       builder: (_) => const GaleriaScreens(),
                                     ),
                                   );
+
+                                  if (foto != null) {
+                                    setState(() {
+                                      _fotoPerfil = foto;
+                                    });
+                                  }
                                 },
                               ),
 
