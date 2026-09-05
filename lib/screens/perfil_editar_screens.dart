@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'camera_screens.dart';
 import 'galeria_screens.dart';
+import 'login_screens.dart';
 
 class PerfilEditarScreens extends StatefulWidget {
   const PerfilEditarScreens({super.key});
@@ -78,17 +79,6 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
     setState(() {
       _excluindo = true;
     });
-    // TESTE: verificar se o token ainda está válido
-    final testePerfil = await apiService.getMe();
-
-    print('STATUS TESTE GET ME: ${testePerfil.statusCode}');
-    print('BODY TESTE GET ME: ${testePerfil.body}');
-
-    // EXCLUSÃO DA CONTA
-    final resposta = await apiService.deleteMe();
-
-    print('STATUS EXCLUSÃO PERFIL: ${resposta.statusCode}');
-    print('BODY EXCLUSÃO PERFIL: ${resposta.body}');
 
     try {
       final resposta = await apiService.deleteMe();
@@ -103,7 +93,11 @@ class _PerfilEditarScreensState extends State<PerfilEditarScreens> {
           const SnackBar(content: Text('Perfil excluído com sucesso.')),
         );
 
-        Navigator.pop(context);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreens()),
+          (route) => false,
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
